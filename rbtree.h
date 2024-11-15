@@ -46,70 +46,40 @@
   be called. Such function will do the not trivial work to rebalance the
   rbtree, if necessary.
 
------------------------------------------------------------------------
-static inline struct page * rb_search_page_cache(struct inode * inode,
-						 unsigned long offset)
-{
-	struct rb_node * n = inode->i_rb_page_cache.rb_node;
-	struct page * page;
-
-	while (n)
-	{
-		page = rb_entry(n, struct page, rb_page_cache);
-
-		if (offset < page->offset)
-			n = n->rb_left;
-		else if (offset > page->offset)
-			n = n->rb_right;
-		else
-			return page;
-	}
-	return NULL;
-}
-
-static inline struct page * __rb_insert_page_cache(struct inode * inode,
-						   unsigned long offset,
-						   struct rb_node * node)
-{
-	struct rb_node ** p = &inode->i_rb_page_cache.rb_node;
-	struct rb_node * parent = NULL;
-	struct page * page;
-
-	while (*p)
-	{
-		parent = *p;
-		page = rb_entry(parent, struct page, rb_page_cache);
-
-		if (offset < page->offset)
-			p = &(*p)->rb_left;
-		else if (offset > page->offset)
-			p = &(*p)->rb_right;
-		else
-			return page;
-	}
-
-	rb_link_node(node, parent, p);
-
-	return NULL;
-}
-
-static inline struct page * rb_insert_page_cache(struct inode * inode,
-						 unsigned long offset,
-						 struct rb_node * node)
-{
-	struct page * ret;
-	if ((ret = __rb_insert_page_cache(inode, offset, node)))
-		goto out;
-	rb_insert_color(node, &inode->i_rb_page_cache);
- out:
-	return ret;
-}
------------------------------------------------------------------------
 */
 
 #ifndef	_LINUX_RBTREE_H
 #define	_LINUX_RBTREE_H
 
+
+/*
+    container_of(ptr, type, member)
+    参数说明:
+        type 是一个结构体类型名
+        member 是 type 结构体的成员变量名
+        ptr 是指向与 member 同类型的某个量的指针
+    
+    值:
+        其值就是一个 type * 指针,
+        指向的位置的 type 类型范围内就有 ptr 指向的区域,
+        且 ptr 指向的区域是此指针指向的 type 类型结构体的
+        member 成员变量
+
+    例:
+        typedef struct {
+            int32_t ma;
+            int32_t mb;
+            int32_t mc;
+        } test_t;
+
+        地址(HEX)   00 01 02 03 | 04 05 06 07 | 08 09 0a 0b
+        值(HEX)     00 00 00 00 | 00 00 00 03 | 00 00 00 00
+
+        int32_t * ptr = (int32_t *)0x04;
+
+        则 container_of(ptr, test_t, mb) 的值为 (test_t *)0x00
+           container_of(ptr, test_t, mc) 的值为 (test_t *)0x04
+ */
 #if defined(container_of)
   #undef container_of
   #define container_of(ptr, type, member) ({			\
@@ -121,6 +91,21 @@ static inline struct page * rb_insert_page_cache(struct inode * inode,
         (type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
+/*
+    offsetof(TYPE, MEMBER)
+    参数说明:
+        TYPE 是一个类型名,
+        MEMBER 是 TYPE 类型的某个成员变量
+    值:
+        其值就是 MEMBER 在 TYPE 中的位置相对 TYPE 起始位置的差
+    例:
+        typedef struct {
+            int64_t ma;
+            int mb;
+        } test_t;
+
+        则 offsetof(test_t, mb) = 8
+*/
 #if defined(offsetof)
   #undef offsetof
   #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
